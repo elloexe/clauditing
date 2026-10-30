@@ -1,6 +1,6 @@
 # Clauditing
 
-Turns raw Roblox gameplay into ready-to-post vertical clips (1080×1920) for YouTube Shorts and TikTok.
+Turns raw gameplay into ready-to-post vertical clips (1080×1920) for YouTube Shorts and TikTok.
 
 It finds the best moments automatically (loud audio + lots of action), cuts them, puts the gameplay on a blurred vertical background, adds a big caption and your @handle, evens out the volume, and adds quick fades.
 
@@ -20,7 +20,7 @@ GitHub rebuilds the .exe automatically on every change (see `.github/workflows/b
 
 Claude edits the clips, then runs `python tools/publish_batch.py batch.json`, which uploads them as a GitHub Release tagged `clips-YYYY-MM-DD` with thumbnails and a `manifest.json` (titles, captions, hashtags, post dates). The app lists every `clips-` release.
 
-> This repo is public, so published clips are public too. Make the repo private in GitHub settings if you'd rather they weren't.
+
 
 ## Command line
 
