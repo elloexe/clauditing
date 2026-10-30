@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Clauditing - turns raw Roblox gameplay into vertical Shorts / TikToks.
+Clauditing - turns raw gameplay recordings into vertical Shorts / TikToks.
 
 Commands
   scan  VIDEO              find the best moments (loud + action-heavy) and make a preview sheet
@@ -10,10 +10,10 @@ Commands
 
 Needs: ffmpeg + ffprobe on PATH, Python 3.8+, numpy.
 """
+
 import argparse
 import json
 import os
-import platform
 import shutil
 import subprocess
 import sys
@@ -26,14 +26,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 W, H = 1080, 1920
 
 DEFAULT_CONFIG = {
-    "handle": "",                 # e.g. "@mygame" - shown small at the bottom
-    "layout": "blur",             # blur | crop | zoom
-    "clip_length": 15,            # seconds, used by scan/auto
+    "handle": "",  # e.g. "@mygame" - shown small at the bottom
+    "layout": "blur",  # blur | crop | zoom
+    "clip_length": 15,  # seconds, used by scan/auto
     "caption_color": "white",
     "caption_outline": "black",
     "caption_size": 92,
-    "caption_y": 0.13,            # caption height on screen: 0 = top, 1 = bottom
-    "font": "",                   # path to a .ttf/.otf; empty = auto-detect a bold font
+    "caption_y": 0.13,  # caption height on screen: 0 = top, 1 = bottom
+    "font": "",  # path to a .ttf/.otf; empty = auto-detect a bold font
     "speed": 1.0,
     "loudnorm": True,
     "default_captions": [
@@ -49,9 +49,12 @@ DEFAULT_CONFIG = {
 
 FONT_CANDIDATES = [
     # Windows
-    "C:/Windows/Fonts/ariblk.ttf", "C:/Windows/Fonts/impact.ttf", "C:/Windows/Fonts/arialbd.ttf",
+    "C:/Windows/Fonts/ariblk.ttf",
+    "C:/Windows/Fonts/impact.ttf",
+    "C:/Windows/Fonts/arialbd.ttf",
     # macOS
-    "/System/Library/Fonts/Supplemental/Arial Black.ttf", "/System/Library/Fonts/Supplemental/Impact.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Black.ttf",
+    "/System/Library/Fonts/Supplemental/Impact.ttf",
     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
     # Linux
     "/usr/share/fonts/opentype/inter/Inter-ExtraBold.otf",
@@ -61,6 +64,7 @@ FONT_CANDIDATES = [
 
 
 # ---------------------------------------------------------------- helpers
+
 
 class ClauditingError(Exception):
     pass
@@ -104,16 +108,16 @@ def check_tools():
 
 def run(cmd, capture=False):
     cmd = [_tool(cmd[0])] + list(cmd[1:])
-    res = subprocess.run(cmd, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
-                         stderr=subprocess.PIPE, creationflags=NO_WINDOW)
+    res = subprocess.run(
+        cmd, stdout=subprocess.PIPE if capture else subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=NO_WINDOW
+    )
     if res.returncode != 0:
         die("ffmpeg failed:\n" + res.stderr.decode(errors="replace")[-1500:])
     return res.stdout
 
 
 def probe(path):
-    out = run(["ffprobe", "-v", "error", "-print_format", "json",
-               "-show_format", "-show_streams", path], capture=True)
+    out = run(["ffprobe", "-v", "error", "-print_format", "json", "-show_format", "-show_streams", path], capture=True)
     info = json.loads(out)
     v = next((s for s in info["streams"] if s["codec_type"] == "video"), None)
     if v is None:
@@ -153,18 +157,20 @@ def fmt_time(t):
 
 # ---------------------------------------------------------------- scanning
 
+
 def audio_energy(path, duration, step):
     """RMS loudness per `step` seconds."""
     sr = 8000
-    raw = run(["ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", str(sr),
-               "-f", "s16le", "-"], capture=True)
+    raw = run(
+        ["ffmpeg", "-v", "error", "-i", path, "-vn", "-ac", "1", "-ar", str(sr), "-f", "s16le", "-"], capture=True
+    )
     a = np.frombuffer(raw, dtype=np.int16).astype(np.float32)
     n = int(duration / step)
     hop = int(sr * step)
     out = np.zeros(n)
     for i in range(n):
-        seg = a[i * hop:(i + 1) * hop]
-        out[i] = np.sqrt(np.mean(seg ** 2)) if len(seg) else 0
+        seg = a[i * hop : (i + 1) * hop]
+        out[i] = np.sqrt(np.mean(seg**2)) if len(seg) else 0
     return out
 
 
@@ -172,15 +178,17 @@ def motion_energy(path, duration, step):
     """Average frame-to-frame pixel change per `step` seconds (tiny grayscale frames)."""
     fw, fh = 96, 54
     fps = 1.0 / step
-    raw = run(["ffmpeg", "-v", "error", "-i", path, "-vf",
-               f"fps={fps},scale={fw}:{fh},format=gray", "-f", "rawvideo", "-"], capture=True)
+    raw = run(
+        ["ffmpeg", "-v", "error", "-i", path, "-vf", f"fps={fps},scale={fw}:{fh},format=gray", "-f", "rawvideo", "-"],
+        capture=True,
+    )
     frames = np.frombuffer(raw, dtype=np.uint8).reshape(-1, fh, fw).astype(np.float32)
     n = int(duration / step)
     diff = np.zeros(n)
     if len(frames) > 1:
         d = np.abs(np.diff(frames, axis=0)).mean(axis=(1, 2))
         m = min(n - 1, len(d))
-        diff[1:m + 1] = d[:m]
+        diff[1 : m + 1] = d[:m]
     return diff
 
 
@@ -215,7 +223,7 @@ def find_moments(path, clip_len, top):
     for idx in order:
         if len(moments) >= top:
             break
-        if taken[max(0, idx - gap):idx + gap].any():
+        if taken[max(0, idx - gap) : idx + gap].any():
             continue
         peak = idx * step
         start = max(0.0, peak - clip_len * 0.4)
@@ -224,8 +232,14 @@ def find_moments(path, clip_len, top):
         if end - start < min(3.0, dur):
             continue
         taken[idx] = True
-        moments.append({"start": round(start, 2), "end": round(end, 2),
-                        "peak": round(peak, 2), "score": round(float(score[idx]), 2)})
+        moments.append(
+            {
+                "start": round(start, 2),
+                "end": round(end, 2),
+                "peak": round(peak, 2),
+                "score": round(float(score[idx]), 2),
+            }
+        )
     return moments, info
 
 
@@ -243,22 +257,54 @@ def contact_sheet(path, moments, out_jpg):
             with open(label_file, "w", encoding="utf-8") as f:
                 f.write(label)
             font = find_font(DEFAULT_CONFIG)
-            dt = (f",drawtext=textfile='{ff_path(label_file)}':fontsize=28:fontcolor=white:"
-                  f"box=1:boxcolor=black@0.6:boxborderw=8:x=10:y=10"
-                  + (f":fontfile='{ff_path(font)}'" if font else ""))
-            run(["ffmpeg", "-v", "error", "-y", "-ss", str(m["peak"]), "-i", path,
-                 "-frames:v", "1", "-vf", "scale=480:270" + dt, t])
+            dt = (
+                f",drawtext=textfile='{ff_path(label_file)}':fontsize=28:fontcolor=white:"
+                f"box=1:boxcolor=black@0.6:boxborderw=8:x=10:y=10" + (f":fontfile='{ff_path(font)}'" if font else "")
+            )
+            run(
+                [
+                    "ffmpeg",
+                    "-v",
+                    "error",
+                    "-y",
+                    "-ss",
+                    str(m["peak"]),
+                    "-i",
+                    path,
+                    "-frames:v",
+                    "1",
+                    "-vf",
+                    "scale=480:270" + dt,
+                    t,
+                ]
+            )
             thumbs.append(t)
         cols = min(3, len(thumbs))
         rows = (len(thumbs) + cols - 1) // cols
-        run(["ffmpeg", "-v", "error", "-y", "-framerate", "1", "-i", os.path.join(tmp, "%02d.jpg"),
-             "-vf", f"tile={cols}x{rows}:padding=6:color=black", "-frames:v", "1", out_jpg])
+        run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-framerate",
+                "1",
+                "-i",
+                os.path.join(tmp, "%02d.jpg"),
+                "-vf",
+                f"tile={cols}x{rows}:padding=6:color=black",
+                "-frames:v",
+                "1",
+                out_jpg,
+            ]
+        )
         return out_jpg
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
 # ---------------------------------------------------------------- editing
+
 
 def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip_dur):
     v = []
@@ -268,13 +314,15 @@ def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip
         # blurred, darkened full-screen background + sharp gameplay on top
         fg_w = W
         if layout == "zoom":
-            v.append(f"[0:v]split=2[bgsrc][fgsrc]")
+            v.append("[0:v]split=2[bgsrc][fgsrc]")
             v.append(f"[fgsrc]crop='min(iw,ih*1.2)':ih,scale={W}:-2,setsar=1[fg]")
         else:
-            v.append(f"[0:v]split=2[bgsrc][fgsrc]")
+            v.append("[0:v]split=2[bgsrc][fgsrc]")
             v.append(f"[fgsrc]scale={fg_w}:-2,setsar=1[fg]")
-        v.append(f"[bgsrc]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
-                 f"gblur=sigma=30,eq=brightness=-0.12,setsar=1[bg]")
+        v.append(
+            f"[bgsrc]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+            f"gblur=sigma=30,eq=brightness=-0.12,setsar=1[bg]"
+        )
         v.append("[bg][fg]overlay=(W-w)/2:(H-h)/2[base]")
 
     chain = "[base]"
@@ -282,13 +330,13 @@ def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip
     fontarg = f":fontfile='{ff_path(font)}'" if font else ""
     if caption_file:
         steps.append(
-            f"drawtext=textfile='{ff_path(caption_file)}'{fontarg}:fontsize={cfg['caption_size']}:"
+            f"drawtext=expansion=none:textfile='{ff_path(caption_file)}'{fontarg}:fontsize={cfg['caption_size']}:"
             f"fontcolor={cfg['caption_color']}:borderw=7:bordercolor={cfg['caption_outline']}:"
             f"line_spacing=14:text_align=center:x=(w-text_w)/2:y=h*{float(cfg.get('caption_y', 0.13)):.3f}"
         )
     if handle_file:
         steps.append(
-            f"drawtext=textfile='{ff_path(handle_file)}'{fontarg}:fontsize=44:fontcolor=white@0.85:"
+            f"drawtext=expansion=none:textfile='{ff_path(handle_file)}'{fontarg}:fontsize=44:fontcolor=white@0.85:"
             f"borderw=4:bordercolor=black@0.7:x=(w-text_w)/2:y=h*0.86"
         )
     if speed != 1.0:
@@ -304,9 +352,11 @@ def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip
         if speed != 1.0:
             s, tempo = speed, []
             while s > 2.0:
-                tempo.append("atempo=2.0"); s /= 2.0
+                tempo.append("atempo=2.0")
+                s /= 2.0
             while s < 0.5:
-                tempo.append("atempo=0.5"); s /= 0.5
+                tempo.append("atempo=0.5")
+                s /= 0.5
             tempo.append(f"atempo={s:.4f}")
             parts += tempo
         if cfg.get("loudnorm", True):
@@ -318,9 +368,12 @@ def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip
 
 
 def text_filter_supports_align():
-    out = subprocess.run([_tool("ffmpeg"), "-hide_banner", "-h", "filter=drawtext"],
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                         creationflags=NO_WINDOW).stdout.decode(errors="replace")
+    out = subprocess.run(
+        [_tool("ffmpeg"), "-hide_banner", "-h", "filter=drawtext"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        creationflags=NO_WINDOW,
+    ).stdout.decode(errors="replace")
     return "text_align" in out
 
 
@@ -359,20 +412,35 @@ def cut_clip(src, start, end, caption, out_path, cfg, layout=None, speed=None, c
             fc = fc.replace(":text_align=center", "")
 
         os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
-        cmd = ["ffmpeg", "-v", "error", "-y", "-ss", f"{start:.3f}", "-t", f"{end - start:.3f}",
-               "-i", src, "-filter_complex", fc, "-map", "[v]"]
+        cmd = [
+            "ffmpeg",
+            "-v",
+            "error",
+            "-y",
+            "-ss",
+            f"{start:.3f}",
+            "-t",
+            f"{end - start:.3f}",
+            "-i",
+            src,
+            "-filter_complex",
+            fc,
+            "-map",
+            "[v]",
+        ]
         if info["has_audio"]:
             cmd += ["-map", "[a]", "-c:a", "aac", "-b:a", "192k"]
-        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-                "-movflags", "+faststart", out_path]
+        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-movflags", "+faststart", out_path]
         run(cmd)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    LOG(f"  saved {os.path.basename(out_path)}  ({fmt_time(start)}-{fmt_time(end)}{', ' + str(speed) + 'x' if speed != 1 else ''})")
+    sped = f", {speed:g}x" if speed != 1 else ""
+    LOG(f"  saved {os.path.basename(out_path)}  ({fmt_time(start)}-{fmt_time(end)}{sped})")
     return out_path
 
 
 # ---------------------------------------------------------------- commands
+
 
 def cmd_scan(args, cfg):
     length = args.length or cfg["clip_length"]
@@ -383,8 +451,7 @@ def cmd_scan(args, cfg):
     with open(jpath, "w", encoding="utf-8") as f:
         json.dump({"video": os.path.abspath(args.video), "moments": moments}, f, indent=2)
     sheet = contact_sheet(args.video, moments, os.path.join(args.out, f"{base}_sheet.jpg"))
-    print(f"{args.video}: {fmt_time(info['duration'])} long, "
-          f"{'with' if info['has_audio'] else 'NO'} audio")
+    print(f"{args.video}: {fmt_time(info['duration'])} long, {'with' if info['has_audio'] else 'NO'} audio")
     for i, m in enumerate(moments, 1):
         print(f"  #{i}  {fmt_time(m['start'])} - {fmt_time(m['end'])}   score {m['score']}")
     print(f"moments -> {jpath}")
@@ -394,7 +461,8 @@ def cmd_scan(args, cfg):
 
 def cmd_cut(args, cfg):
     out = args.output or os.path.join(
-        args.out, f"{os.path.splitext(os.path.basename(args.video))[0]}_{args.start}-{args.end}.mp4")
+        args.out, f"{os.path.splitext(os.path.basename(args.video))[0]}_{args.start}-{args.end}.mp4"
+    )
     cut_clip(args.video, args.start, args.end, args.caption, out, cfg, args.layout, args.speed, args.caption_y)
 
 
@@ -410,6 +478,11 @@ def make_week(video, out_dir, cfg, count=7, length=None, layout=None, progress=N
     moments.sort(key=lambda m: m["start"])
     caps = cfg.get("default_captions") or [""]
     base = os.path.splitext(os.path.basename(video))[0]
+    if len(moments) < count:
+        LOG(
+            f"note: only room for {len(moments)} separate {length:g}s clips in this video "
+            f"(asked for {count}). Use a longer video or shorter clips for more."
+        )
     LOG(f"making {len(moments)} clips from {os.path.basename(video)}")
     made = []
     for i, m in enumerate(moments, 1):
@@ -433,12 +506,21 @@ def cmd_batch(args, cfg):
         src = c["video"] if os.path.isabs(c["video"]) else os.path.join(plan_dir, c["video"])
         name = c.get("name") or f"clip{i:02d}"
         out = os.path.join(args.out, f"{name}.mp4")
-        cut_clip(src, c["start"], c["end"], c.get("caption", ""), out, cfg,
-                 c.get("layout"), c.get("speed"), c.get("caption_y"))
+        cut_clip(
+            src,
+            c["start"],
+            c["end"],
+            c.get("caption", ""),
+            out,
+            cfg,
+            c.get("layout"),
+            c.get("speed"),
+            c.get("caption_y"),
+        )
 
 
 def main():
-    p = argparse.ArgumentParser(prog="clauditing", description="Roblox gameplay -> vertical Shorts/TikToks")
+    p = argparse.ArgumentParser(prog="clauditing", description="Gameplay recordings -> vertical Shorts and TikToks")
     p.add_argument("--config", help="path to config.json (default: next to this script)")
     p.add_argument("--out", default="out", help="output folder (default: out)")
     sub = p.add_subparsers(dest="cmd", required=True)

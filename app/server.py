@@ -7,11 +7,11 @@ A tiny local web server (127.0.0.1 only) that the app window talks to:
   - downloads clips, tracks which ones you've posted
   - runs the Clauditing editor on videos from your PC
 """
+
 import json
 import mimetypes
 import os
 import secrets
-import shutil
 import subprocess
 import sys
 import threading
@@ -26,14 +26,18 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(ROOT))
 import clauditing  # noqa: E402
 
-UI_DIR = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(ROOT)), "app", "ui") \
-    if getattr(sys, "frozen", False) else os.path.join(ROOT, "ui")
-VERSION = "0.2.0"
+UI_DIR = (
+    os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(ROOT)), "app", "ui")
+    if getattr(sys, "frozen", False)
+    else os.path.join(ROOT, "ui")
+)
+VERSION = "0.3.0"
 DEFAULT_REPO = "elloexe/clauditing"
 GITHUB = "https://api.github.com"
 
 
 # ---------------------------------------------------------------- storage
+
 
 def app_dir():
     base = os.environ.get("APPDATA") or os.path.join(os.path.expanduser("~"), ".config")
@@ -93,13 +97,19 @@ class Settings:
 
     def editor_config(self):
         cfg = dict(clauditing.DEFAULT_CONFIG)
-        cfg.update({"handle": self["handle"], "layout": self["layout"],
-                    "clip_length": self["clip_length"],
-                    "default_captions": self["captions"] or cfg["default_captions"]})
+        cfg.update(
+            {
+                "handle": self["handle"],
+                "layout": self["layout"],
+                "clip_length": self["clip_length"],
+                "default_captions": self["captions"] or cfg["default_captions"],
+            }
+        )
         return cfg
 
 
 # ---------------------------------------------------------------- GitHub
+
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *a, **k):
@@ -112,19 +122,25 @@ class GitHubError(Exception):
 
 def gh_request(token, path, accept="application/vnd.github+json", follow_assets=False):
     url = path if path.startswith("http") else GITHUB + path
-    req = urllib.request.Request(url, headers={
-        "Accept": accept, "User-Agent": "Clauditing/" + VERSION,
-        "X-GitHub-Api-Version": "2022-11-28",
-        **({"Authorization": "Bearer " + token} if token else {}),
-    })
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Accept": accept,
+            "User-Agent": "Clauditing/" + VERSION,
+            "X-GitHub-Api-Version": "2022-11-28",
+            **({"Authorization": "Bearer " + token} if token else {}),
+        },
+    )
     opener = urllib.request.build_opener(NoRedirect) if follow_assets else urllib.request.build_opener()
     try:
         return opener.open(req, timeout=30)
     except urllib.error.HTTPError as e:
         if follow_assets and e.code in (301, 302, 303, 307, 308):
             # asset downloads redirect to a signed storage URL that must NOT get our token
-            return urllib.request.urlopen(urllib.request.Request(
-                e.headers["Location"], headers={"User-Agent": "Clauditing/" + VERSION}), timeout=60)
+            return urllib.request.urlopen(
+                urllib.request.Request(e.headers["Location"], headers={"User-Agent": "Clauditing/" + VERSION}),
+                timeout=60,
+            )
         if e.code == 401:
             raise GitHubError("GitHub says that token isn't valid (it may have expired).")
         if e.code == 404:
@@ -142,6 +158,7 @@ def gh_json(token, path):
 
 
 # ---------------------------------------------------------------- jobs
+
 
 class Jobs:
     def __init__(self):
@@ -162,6 +179,7 @@ class Jobs:
             except Exception as e:  # report every failure to the UI
                 job["state"] = "error"
                 job["error"] = str(e)
+
         threading.Thread(target=runner, daemon=True).start()
         return jid
 
@@ -170,6 +188,7 @@ class Jobs:
 
 
 # ---------------------------------------------------------------- the app
+
 
 class App:
     def __init__(self):
@@ -192,22 +211,29 @@ class App:
 
     # ---- account
     def state(self):
-        return {"version": VERSION, "settings": self.settings.public(),
-                "library": self.library(), "desktop": self.window is not None}
+        return {
+            "version": VERSION,
+            "settings": self.settings.public(),
+            "library": self.library(),
+            "desktop": self.window is not None,
+        }
 
     def signin(self, token, repo):
         token = (token or "").strip()
         repo = (repo or DEFAULT_REPO).strip().strip("/")
         if repo.startswith("https://github.com/"):
-            repo = repo[len("https://github.com/"):]
+            repo = repo[len("https://github.com/") :]
         if not token:
             raise GitHubError("Paste your GitHub token first.")
         user = gh_json(token, "/user")
         gh_json(token, f"/repos/{repo}")  # make sure the token can see the repo
         self.settings["token"] = token
         self.settings["repo"] = repo
-        self.settings["user"] = {"login": user["login"], "avatar": user.get("avatar_url", ""),
-                                 "name": user.get("name") or user["login"]}
+        self.settings["user"] = {
+            "login": user["login"],
+            "avatar": user.get("avatar_url", ""),
+            "name": user.get("name") or user["login"],
+        }
         self.settings.save()
         return self.state()
 
@@ -233,7 +259,8 @@ class App:
                 manifest = self._cached_json(token, assets["manifest.json"])
             clips = []
             entries = (manifest or {}).get("clips") or [
-                {"file": n} for n in sorted(assets) if n.lower().endswith(".mp4")]
+                {"file": n} for n in sorted(assets) if n.lower().endswith(".mp4")
+            ]
             for e in entries:
                 a = assets.get(e["file"])
                 if not a:
@@ -241,20 +268,33 @@ class App:
                 key = f"{rel['tag_name']}/{e['file']}"
                 local = os.path.join(self.library(), rel["tag_name"], e["file"])
                 thumb = assets.get(e.get("thumb") or os.path.splitext(e["file"])[0] + ".jpg")
-                clips.append({
-                    "key": key, "file": e["file"], "asset_id": a["id"], "size": a["size"],
-                    "title": e.get("title") or os.path.splitext(e["file"])[0],
-                    "caption": e.get("caption", ""), "hashtags": e.get("hashtags", ""),
-                    "post_on": e.get("post_on", ""),
-                    "thumb": f"/thumb/{thumb['id']}" if thumb else "",
-                    "downloaded": os.path.exists(local),
-                    "local": local if os.path.exists(local) else "",
-                    "url": self.media_url(local) if os.path.exists(local) else "",
-                    "posted": key in self.settings["posted"],
-                })
-            out.append({"tag": rel["tag_name"], "title": (manifest or {}).get("title") or rel["name"] or rel["tag_name"],
-                        "notes": (manifest or {}).get("notes") or rel.get("body") or "",
-                        "date": rel.get("published_at") or rel.get("created_at"), "clips": clips})
+                clips.append(
+                    {
+                        "key": key,
+                        "file": e["file"],
+                        "asset_id": a["id"],
+                        "size": a["size"],
+                        "title": e.get("title") or os.path.splitext(e["file"])[0],
+                        "caption": e.get("caption", ""),
+                        "hashtags": e.get("hashtags", ""),
+                        "post_on": e.get("post_on", ""),
+                        "thumb": f"/thumb/{thumb['id']}" if thumb else "",
+                        "downloaded": os.path.exists(local),
+                        "local": local if os.path.exists(local) else "",
+                        "url": self.media_url(local) if os.path.exists(local) else "",
+                        "posted": key in self.settings["posted"],
+                    }
+                )
+            title = (manifest or {}).get("title") or rel["name"] or rel["tag_name"]
+            out.append(
+                {
+                    "tag": rel["tag_name"],
+                    "title": title,
+                    "notes": (manifest or {}).get("notes") or rel.get("body") or "",
+                    "date": rel.get("published_at") or rel.get("created_at"),
+                    "clips": clips,
+                }
+            )
         return out
 
     def _cached_json(self, token, asset):
@@ -271,8 +311,12 @@ class App:
         p = os.path.join(self.cache_dir, f"thumb_{int(asset_id)}.jpg")
         if not os.path.exists(p):
             repo = self.settings["repo"]
-            with gh_request(self.settings["token"], f"/repos/{repo}/releases/assets/{int(asset_id)}",
-                            accept="application/octet-stream", follow_assets=True) as r:
+            with gh_request(
+                self.settings["token"],
+                f"/repos/{repo}/releases/assets/{int(asset_id)}",
+                accept="application/octet-stream",
+                follow_assets=True,
+            ) as r:
                 data = r.read()
             with open(p, "wb") as f:
                 f.write(data)
@@ -286,8 +330,12 @@ class App:
 
         def work(job):
             os.makedirs(dest_dir, exist_ok=True)
-            with gh_request(token, f"/repos/{repo}/releases/assets/{int(asset_id)}",
-                            accept="application/octet-stream", follow_assets=True) as r:
+            with gh_request(
+                token,
+                f"/repos/{repo}/releases/assets/{int(asset_id)}",
+                accept="application/octet-stream",
+                follow_assets=True,
+            ) as r:
                 total = int(r.headers.get("Content-Length") or 0)
                 got = 0
                 tmp = dest + ".part"
@@ -302,6 +350,7 @@ class App:
                             job["progress"] = got / total
             os.replace(tmp, dest)
             return {"local": dest, "url": self.media_url(dest)}
+
         return self.jobs.start(work)
 
     def set_posted(self, key, posted):
@@ -334,6 +383,7 @@ class App:
                         job["progress"] = 0.1 + 0.9 * (i / max(n, 1))
                         if i < n:
                             job["log"].append(f"Editing clip {i + 1} of {n}...")
+
                     job["progress"] = 0.05
                     made = clauditing.make_week(video, out_dir, cfg, int(count), float(length), layout, prog)
                     for m in made:
@@ -342,13 +392,15 @@ class App:
                     return {"folder": out_dir}
                 finally:
                     clauditing.LOG = old_log
+
         return self.jobs.start(work)
 
     def _make_thumb(self, mp4):
         jpg = os.path.splitext(mp4)[0] + ".jpg"
         try:
-            clauditing.run(["ffmpeg", "-v", "error", "-y", "-ss", "1", "-i", mp4, "-frames:v", "1",
-                            "-vf", "scale=360:-2", jpg])
+            clauditing.run(
+                ["ffmpeg", "-v", "error", "-y", "-ss", "1", "-i", mp4, "-frames:v", "1", "-vf", "scale=360:-2", jpg]
+            )
         except clauditing.ClauditingError:
             pass
 
@@ -367,10 +419,20 @@ class App:
                     p = os.path.join(d, f)
                     jpg = os.path.splitext(p)[0] + ".jpg"
                     key = "local/" + name + "/" + f
-                    clips.append({"key": key, "file": f, "title": os.path.splitext(f)[0],
-                                  "url": self.media_url(p), "local": p, "downloaded": True,
-                                  "thumb": self.media_url(jpg) if os.path.exists(jpg) else "",
-                                  "caption": "", "hashtags": "", "posted": key in self.settings["posted"]})
+                    clips.append(
+                        {
+                            "key": key,
+                            "file": f,
+                            "title": os.path.splitext(f)[0],
+                            "url": self.media_url(p),
+                            "local": p,
+                            "downloaded": True,
+                            "thumb": self.media_url(jpg) if os.path.exists(jpg) else "",
+                            "caption": "",
+                            "hashtags": "",
+                            "posted": key in self.settings["posted"],
+                        }
+                    )
             if clips:
                 groups.append({"tag": "local/" + name, "title": name, "folder": d, "clips": clips})
         return groups
@@ -379,6 +441,7 @@ class App:
         if self.window is None:
             return {"path": ""}
         import webview
+
         types = ("Videos (*.mp4;*.mov;*.mkv;*.webm;*.avi)", "All files (*.*)")
         res = self.window.create_file_dialog(webview.OPEN_DIALOG, allow_multiple=False, file_types=types)
         return {"path": res[0] if res else ""}
@@ -415,11 +478,13 @@ class App:
     def open_url(self, url):
         if url.startswith("https://github.com/"):
             import webbrowser
+
             webbrowser.open(url)
         return {"ok": True}
 
 
 # ---------------------------------------------------------------- HTTP
+
 
 def make_handler(app, key):
     routes = {
@@ -430,7 +495,9 @@ def make_handler(app, key):
         "local": lambda b: app.local_clips(),
         "download": lambda b: {"job": app.download(b["tag"], b["file"], b["asset_id"])},
         "posted": lambda b: app.set_posted(b["key"], bool(b.get("posted"))),
-        "make": lambda b: {"job": app.make(b.get("video"), b.get("count", 7), b.get("length", 15), b.get("layout", "blur"))},
+        "make": lambda b: {
+            "job": app.make(b.get("video"), b.get("count", 7), b.get("length", 15), b.get("layout", "blur"))
+        },
         "job": lambda b: app.jobs.get(b["id"]) or {"state": "error", "error": "unknown job"},
         "pick_video": lambda b: app.pick_video(),
         "open": lambda b: app.open_path(b.get("path")),
@@ -534,6 +601,7 @@ def make_handler(app, key):
                         left -= len(chunk)
                 except (BrokenPipeError, ConnectionResetError):
                     pass
+
     return Handler
 
 

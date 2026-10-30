@@ -7,6 +7,7 @@ on:
       - "app/**"
       - "clauditing.py"
       - "requirements*.txt"
+      - "pyproject.toml"
       - ".github/workflows/build-exe.yml"
   workflow_dispatch:
 
@@ -21,14 +22,14 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
       - name: Install Python packages
-        run: pip install -r requirements-app.txt pyinstaller
+        run: pip install -r requirements-app.txt pyinstaller pytest
 
       - name: Get ffmpeg (bundled inside the app)
         shell: pwsh
@@ -44,15 +45,13 @@ jobs:
           Get-ChildItem ffmpeg_dl -Recurse -Include ffmpeg.exe,ffprobe.exe | Copy-Item -Destination bin
           bin\ffmpeg.exe -hide_banner -version | Select-Object -First 1
 
-      - name: Smoke test (editor + app server)
+      - name: Test suite on Windows (with the bundled ffmpeg)
         shell: pwsh
         env:
           CLAUDITING_FFMPEG_DIR: ${{ github.workspace }}\bin
         run: |
-          bin\ffmpeg.exe -v error -f lavfi -i "testsrc2=size=1280x720:rate=30:duration=30" -f lavfi -i "sine=frequency=300:duration=30" -shortest -c:v libx264 -c:a aac test_in.mp4
-          python clauditing.py --out smoke auto test_in.mp4 --count 2
-          if (!(Test-Path smoke\test_in_day01.mp4)) { throw "editor produced no clip" }
-          python tests/smoke_server.py
+          $env:PATH = "${{ github.workspace }}\bin;$env:PATH"
+          python -m pytest -q
 
       - name: Build Clauditing.exe
         shell: pwsh
@@ -65,7 +64,7 @@ jobs:
             app/main.py
           Get-Item dist\Clauditing.exe | Select-Object Name, Length
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Clauditing-windows
           path: dist/Clauditing.exe
@@ -75,11 +74,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $notes = "Download **Clauditing.exe** below and run it. Windows may say it's from an unknown publisher: click *More info* then *Run anyway*.`n`nBuilt from commit ${{ github.sha }}."
+          $version = (Select-String -Path pyproject.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+          $notes = "## Clauditing $version for Windows`n`nDownload **Clauditing.exe** below and run it. Nothing else to install.`n`nWindows may say it's from an unknown publisher: click *More info* then *Run anyway*.`n`nSee [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for what's new. Built from ${{ github.sha }}."
           gh release view app *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create app dist/Clauditing.exe --title "Clauditing app (Windows)" --notes $notes --latest
+            gh release create app dist/Clauditing.exe --title "Clauditing $version (Windows)" --notes $notes --latest
           } else {
             gh release upload app dist/Clauditing.exe --clobber
-            gh release edit app --notes $notes
+            gh release edit app --notes $notes --title "Clauditing $version (Windows)"
           }

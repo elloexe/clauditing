@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clauditing"
+version = "0.3.0"
+description = "Turn gameplay recordings into ready-to-post vertical Shorts and TikToks."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "elloexe" }]
+requires-python = ">=3.9"
+dependencies = ["numpy>=1.20"]
+keywords = ["ffmpeg", "shorts", "tiktok", "gaming", "video-editing", "highlights"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Multimedia :: Video :: Conversion",
+]
+
+[project.optional-dependencies]
+app = ["pywebview>=5.0"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+clauditing = "clauditing:main"
+
+[project.urls]
+Homepage = "https://github.com/elloexe/clauditing"
+Issues = "https://github.com/elloexe/clauditing/issues"
+
+[tool.setuptools]
+py-modules = ["clauditing"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+extend-exclude = ["test", "out"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "UP"]
+ignore = ["E402", "B904", "UP015"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["clauditing", "app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

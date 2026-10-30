@@ -1,4 +1,5 @@
 """Clauditing desktop app: opens the UI in a native window."""
+
 import os
 import sys
 
@@ -16,12 +17,14 @@ def main():
     app = App()
     httpd, key, url = start_server(app)
     window = webview.create_window(
-        "Clauditing", url, width=1240, height=820, min_size=(900, 620),
-        background_color="#FAF9F5", text_select=True)
+        "Clauditing", url, width=1240, height=820, min_size=(900, 620), background_color="#FAF9F5", text_select=True
+    )
     app.window = window
     try:
-        webview.start(private_mode=False, storage_path=os.path.join(
-            os.environ.get("APPDATA", os.path.expanduser("~")), "Clauditing", "webview"))
+        webview.start(
+            private_mode=False,
+            storage_path=os.path.join(os.environ.get("APPDATA", os.path.expanduser("~")), "Clauditing", "webview"),
+        )
     finally:
         httpd.shutdown()
 

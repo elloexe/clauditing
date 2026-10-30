@@ -10,13 +10,14 @@ batch.json:
   "notes": "Best moments from Saturday's session",
   "clips": [
     {"file": "out/monday.mp4", "title": "Boss fight comeback",
-     "caption": "this was NOT planned", "hashtags": "#roblox #fyp", "post_on": "2026-11-02"}
+     "caption": "this was NOT planned", "hashtags": "#gaming #fyp", "post_on": "2026-11-02"}
   ]
 }
 
 Makes a thumbnail for each clip, writes manifest.json and uploads everything as a GitHub Release
 (needs the `gh` CLI, logged in).
 """
+
 import json
 import os
 import subprocess
@@ -44,18 +45,53 @@ def main():
         name = os.path.basename(src)
         thumb = os.path.splitext(name)[0] + ".jpg"
         thumb_path = os.path.join(tmp, thumb)
-        clauditing.run(["ffmpeg", "-v", "error", "-y", "-ss", str(c.get("thumb_at", 1)), "-i", src,
-                        "-frames:v", "1", "-vf", "scale=360:-2", thumb_path])
+        clauditing.run(
+            [
+                "ffmpeg",
+                "-v",
+                "error",
+                "-y",
+                "-ss",
+                str(c.get("thumb_at", 1)),
+                "-i",
+                src,
+                "-frames:v",
+                "1",
+                "-vf",
+                "scale=360:-2",
+                thumb_path,
+            ]
+        )
         files += [src, thumb_path]
-        entries.append({"file": name, "thumb": thumb, "title": c.get("title", ""),
-                        "caption": c.get("caption", ""), "hashtags": c.get("hashtags", ""),
-                        "post_on": c.get("post_on", "")})
+        entries.append(
+            {
+                "file": name,
+                "thumb": thumb,
+                "title": c.get("title", ""),
+                "caption": c.get("caption", ""),
+                "hashtags": c.get("hashtags", ""),
+                "post_on": c.get("post_on", ""),
+            }
+        )
     manifest = os.path.join(tmp, "manifest.json")
     with open(manifest, "w", encoding="utf-8") as f:
         json.dump({"title": plan.get("title", tag), "notes": plan.get("notes", ""), "clips": entries}, f, indent=2)
     files.append(manifest)
-    subprocess.run(["gh", "release", "create", tag, *files, "--title", plan.get("title", tag),
-                    "--notes", plan.get("notes", ""), "--latest=false"], check=True)
+    subprocess.run(
+        [
+            "gh",
+            "release",
+            "create",
+            tag,
+            *files,
+            "--title",
+            plan.get("title", tag),
+            "--notes",
+            plan.get("notes", ""),
+            "--latest=false",
+        ],
+        check=True,
+    )
     print(f"published {len(entries)} clips as {tag}")
 
 

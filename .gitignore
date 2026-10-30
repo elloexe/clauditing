@@ -1,7 +1,21 @@
+# output & media
 out/
 test/
-config.json
 *.mp4
 *.mov
 *.mkv
+config.json
+
+# python
 __pycache__/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# windows build
+build/
+dist/
+bin/
+*.spec

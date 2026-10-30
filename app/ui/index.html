@@ -342,7 +342,7 @@ function pageClaude() {
   if (S.batches === null) { p.innerHTML = head + `<div class="loading"><span class="spin"></span> Checking GitHub for new clips…</div>`; return; }
   let body;
   if (S.err) body = emptyState('refresh', 'Couldn\'t load clips', esc(S.err), `<button class="btn" id="retry">Try again</button>`);
-  else if (!S.batches.length) body = emptyState('spark', 'No clips from Claude yet', 'Send Claude your Roblox gameplay in chat. When the clips are ready they\'ll show up here, one batch per week.');
+  else if (!S.batches.length) body = emptyState('spark', 'No clips from Claude yet', 'Send Claude your gameplay in chat. When the clips are ready they\'ll show up here, one batch per week.');
   else body = S.batches.map(batchHTML).join('');
   p.innerHTML = head + body;
   bindClips(p, S.batches || []);
