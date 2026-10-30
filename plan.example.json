@@ -1,0 +1,7 @@
+{
+  "clips": [
+    {"name": "monday",  "video": "session1.mp4", "start": 72,  "end": 88,  "caption": "bro really tried"},
+    {"name": "tuesday", "video": "session1.mp4", "start": 140, "end": 152, "caption": "the jump at the end", "speed": 1.2},
+    {"name": "wednesday", "video": "session2.mp4", "start": 30, "end": 45, "caption": "new map preview", "layout": "crop"}
+  ]
+}

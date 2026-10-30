@@ -1,0 +1,15 @@
+{
+  "handle": "@yourgame",
+  "layout": "blur",
+  "clip_length": 15,
+  "caption_size": 92,
+  "default_captions": [
+    "wait for it...",
+    "this was NOT planned",
+    "how did this even work",
+    "rate this 1-10",
+    "new update goes crazy",
+    "bro thought he was safe",
+    "I can't believe this happened"
+  ]
+}
