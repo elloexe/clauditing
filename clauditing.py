@@ -61,9 +61,29 @@ FONT_CANDIDATES = [
 
 # ---------------------------------------------------------------- helpers
 
+class ClauditingError(Exception):
+    pass
+
+
 def die(msg):
-    print(f"clauditing: {msg}", file=sys.stderr)
-    sys.exit(1)
+    raise ClauditingError(msg)
+
+
+def _tool(name):
+    """Find ffmpeg/ffprobe: bundled next to the app first, then PATH."""
+    exe = name + (".exe" if os.name == "nt" else "")
+    dirs = [os.environ.get("CLAUDITING_FFMPEG_DIR", "")]
+    if getattr(sys, "frozen", False):
+        dirs += [os.path.join(getattr(sys, "_MEIPASS", ""), "bin"), os.path.dirname(sys.executable)]
+    dirs.append(os.path.join(HERE, "bin"))
+    for d in dirs:
+        if d and os.path.exists(os.path.join(d, exe)):
+            return os.path.join(d, exe)
+    return shutil.which(name) or name
+
+
+NO_WINDOW = 0x08000000 if os.name == "nt" else 0  # don't flash console windows on Windows
+LOG = print  # the desktop app swaps this for its own progress logger
 
 
 def load_config(path=None):
@@ -77,13 +97,14 @@ def load_config(path=None):
 
 def check_tools():
     for tool in ("ffmpeg", "ffprobe"):
-        if not shutil.which(tool):
+        if not os.path.exists(_tool(tool)) and not shutil.which(tool):
             die(f"{tool} not found. Install ffmpeg (https://ffmpeg.org/download.html) and try again.")
 
 
 def run(cmd, capture=False):
+    cmd = [_tool(cmd[0])] + list(cmd[1:])
     res = subprocess.run(cmd, stdout=subprocess.PIPE if capture else subprocess.DEVNULL,
-                         stderr=subprocess.PIPE)
+                         stderr=subprocess.PIPE, creationflags=NO_WINDOW)
     if res.returncode != 0:
         die("ffmpeg failed:\n" + res.stderr.decode(errors="replace")[-1500:])
     return res.stdout
@@ -296,8 +317,9 @@ def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip
 
 
 def text_filter_supports_align():
-    out = subprocess.run(["ffmpeg", "-hide_banner", "-h", "filter=drawtext"],
-                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode(errors="replace")
+    out = subprocess.run([_tool("ffmpeg"), "-hide_banner", "-h", "filter=drawtext"],
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                         creationflags=NO_WINDOW).stdout.decode(errors="replace")
     return "text_align" in out
 
 
@@ -309,11 +331,11 @@ def cut_clip(src, start, end, caption, out_path, cfg, layout=None, speed=None):
         die(f"end ({end}) must be after start ({start})")
     speed = float(speed or cfg.get("speed", 1.0))
     if (end - start) / speed > 60:
-        print("  note: clip is over 60s; YouTube Shorts must be 60s or less for some accounts.")
+        LOG("  note: clip is over 60s; YouTube Shorts must be 60s or less for some accounts.")
     layout = layout or cfg.get("layout", "blur")
     font = find_font(cfg)
     if not font:
-        print("  warning: no bold font found; put a .ttf in the fonts/ folder for nicer captions.")
+        LOG("  warning: no bold font found; put a .ttf in the fonts/ folder for nicer captions.")
 
     tmp = tempfile.mkdtemp()
     try:
@@ -343,7 +365,7 @@ def cut_clip(src, start, end, caption, out_path, cfg, layout=None, speed=None):
         run(cmd)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-    print(f"  saved {out_path}  ({fmt_time(start)}-{fmt_time(end)}{', ' + str(speed) + 'x' if speed != 1 else ''})")
+    LOG(f"  saved {os.path.basename(out_path)}  ({fmt_time(start)}-{fmt_time(end)}{', ' + str(speed) + 'x' if speed != 1 else ''})")
     return out_path
 
 
@@ -375,14 +397,28 @@ def cmd_cut(args, cfg):
 
 def cmd_auto(args, cfg):
     length = args.length or cfg["clip_length"]
-    moments, _ = find_moments(args.video, length, args.count)
+    return make_week(args.video, args.out, cfg, args.count, length, args.layout)
+
+
+def make_week(video, out_dir, cfg, count=7, length=None, layout=None, progress=None):
+    """Scan a video and cut its best `count` moments in time order. Returns clip info dicts."""
+    length = length or cfg["clip_length"]
+    moments, _ = find_moments(video, length, count)
     moments.sort(key=lambda m: m["start"])
     caps = cfg.get("default_captions") or [""]
-    base = os.path.splitext(os.path.basename(args.video))[0]
-    print(f"making {len(moments)} clips from {args.video}")
+    base = os.path.splitext(os.path.basename(video))[0]
+    LOG(f"making {len(moments)} clips from {os.path.basename(video)}")
+    made = []
     for i, m in enumerate(moments, 1):
-        out = os.path.join(args.out, f"{base}_day{i:02d}.mp4")
-        cut_clip(args.video, m["start"], m["end"], caps[(i - 1) % len(caps)], out, cfg, args.layout)
+        if progress:
+            progress(i - 1, len(moments))
+        out = os.path.join(out_dir, f"{base}_day{i:02d}.mp4")
+        cap = caps[(i - 1) % len(caps)]
+        cut_clip(video, m["start"], m["end"], cap, out, cfg, layout)
+        made.append({"file": out, "caption": cap, "start": m["start"], "end": m["end"]})
+    if progress:
+        progress(len(moments), len(moments))
+    return made
 
 
 def cmd_batch(args, cfg):
@@ -428,9 +464,13 @@ def main():
     b.add_argument("plan")
 
     args = p.parse_args()
-    check_tools()
-    cfg = load_config(args.config)
-    {"scan": cmd_scan, "cut": cmd_cut, "auto": cmd_auto, "batch": cmd_batch}[args.cmd](args, cfg)
+    try:
+        check_tools()
+        cfg = load_config(args.config)
+        {"scan": cmd_scan, "cut": cmd_cut, "auto": cmd_auto, "batch": cmd_batch}[args.cmd](args, cfg)
+    except ClauditingError as e:
+        print(f"clauditing: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,2 @@
+numpy>=1.20
+pywebview>=5.0

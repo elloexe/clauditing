@@ -1,0 +1,85 @@
+name: Build Clauditing.exe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "clauditing.py"
+      - "requirements*.txt"
+      - ".github/workflows/build-exe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-exe
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python packages
+        run: pip install -r requirements-app.txt pyinstaller
+
+      - name: Get ffmpeg (bundled inside the app)
+        shell: pwsh
+        run: |
+          $zip = "ffmpeg.zip"
+          try {
+            Invoke-WebRequest "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $zip
+          } catch {
+            Invoke-WebRequest "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile $zip
+          }
+          Expand-Archive $zip -DestinationPath ffmpeg_dl
+          New-Item -ItemType Directory -Force bin | Out-Null
+          Get-ChildItem ffmpeg_dl -Recurse -Include ffmpeg.exe,ffprobe.exe | Copy-Item -Destination bin
+          bin\ffmpeg.exe -hide_banner -version | Select-Object -First 1
+
+      - name: Smoke test (editor + app server)
+        shell: pwsh
+        env:
+          CLAUDITING_FFMPEG_DIR: ${{ github.workspace }}\bin
+        run: |
+          bin\ffmpeg.exe -v error -f lavfi -i "testsrc2=size=1280x720:rate=30:duration=30" -f lavfi -i "sine=frequency=300:duration=30" -shortest -c:v libx264 -c:a aac test_in.mp4
+          python clauditing.py --out smoke auto test_in.mp4 --count 2
+          if (!(Test-Path smoke\test_in_day01.mp4)) { throw "editor produced no clip" }
+          python tests/smoke_server.py
+
+      - name: Build Clauditing.exe
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --onefile --windowed --name Clauditing `
+            --icon app/icon.ico --paths . `
+            --add-data "app/ui;app/ui" `
+            --add-binary "bin/ffmpeg.exe;bin" --add-binary "bin/ffprobe.exe;bin" `
+            --collect-all webview `
+            app/main.py
+          Get-Item dist\Clauditing.exe | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Clauditing-windows
+          path: dist/Clauditing.exe
+
+      - name: Publish to the "app" release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = "Download **Clauditing.exe** below and run it. Windows may say it's from an unknown publisher: click *More info* then *Run anyway*.`n`nBuilt from commit ${{ github.sha }}."
+          gh release view app *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create app dist/Clauditing.exe --title "Clauditing app (Windows)" --notes $notes --latest
+          } else {
+            gh release upload app dist/Clauditing.exe --clobber
+            gh release edit app --notes $notes
+          }

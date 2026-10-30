@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clauditing</title>
+<link rel="icon" href="logo.svg">
+<style>
+:root {
+  --bg: #FAF9F5;
+  --side: #F2F0E8;
+  --card: #FFFFFF;
+  --ink: #1F1E1B;
+  --ink-2: #57554E;
+  --ink-3: #8C897F;
+  --line: #E6E3D8;
+  --line-2: #D9D5C7;
+  --accent: #C4643F;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #F6E7DE;
+  --ok: #4F7A4A;
+  --ok-soft: #E5EEDF;
+  --danger: #B3402E;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --r: 12px;
+  --shadow: 0 1px 2px rgba(31,30,27,.05), 0 4px 16px rgba(31,30,27,.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #262624; --side: #1F1E1D; --card: #30302E; --ink: #F1EFE8; --ink-2: #C3C0B6; --ink-3: #8F8C83;
+    --line: #3B3A37; --line-2: #4A4844; --accent: #D9774F; --accent-soft: #4A3328; --ok: #8DBB84; --ok-soft: #2F3B2C;
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--sans); -webkit-font-smoothing: antialiased; overflow: hidden; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: var(--accent); }
+svg.i { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+/* ---------- layout */
+.shell { display: grid; grid-template-columns: 236px 1fr; height: 100vh; }
+.side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; }
+.brand { display: flex; align-items: center; gap: 9px; padding: 6px 10px 18px; }
+.brand img { width: 26px; height: 26px; }
+.brand b { font: 600 19px/1 var(--serif); letter-spacing: -.01em; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button { display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 8px 10px; border-radius: 9px; color: var(--ink-2); text-align: left; }
+.nav button:hover { background: rgba(127,120,100,.1); color: var(--ink); }
+.nav button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.nav .count { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+.side .grow { flex: 1; }
+.me { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; border: 0; background: none; text-align: left; width: 100%; }
+.me:hover { background: rgba(127,120,100,.1); }
+.me img, .me .ph { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); flex: none; display: grid; place-items: center; color: var(--accent); font-weight: 600; }
+.me small { display: block; color: var(--ink-3); font-size: 12px; }
+
+.main { overflow-y: auto; }
+.page { max-width: 1080px; margin: 0 auto; padding: 40px 40px 80px; }
+.head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 26px; }
+.head h1 { font: 500 30px/1.15 var(--serif); letter-spacing: -.015em; margin: 0; }
+.head p { margin: 6px 0 0; color: var(--ink-2); }
+.head .grow { flex: 1; }
+
+/* ---------- controls */
+.btn { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--line-2); background: var(--card); color: var(--ink); white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.ghost { background: none; border-color: transparent; color: var(--ink-2); }
+.btn.ghost:hover { background: rgba(127,120,100,.1); color: var(--ink); }
+.btn.sm { height: 30px; padding: 0 10px; font-size: 13px; border-radius: 8px; }
+.btn[disabled] { opacity: .5; pointer-events: none; }
+.field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.field label { font-weight: 600; font-size: 13px; }
+.field .hint { color: var(--ink-3); font-size: 12.5px; }
+.input, textarea.input { width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 9px; background: var(--card); outline: none; }
+textarea.input { height: auto; min-height: 150px; padding: 10px 12px; resize: vertical; line-height: 1.55; }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.seg { display: inline-flex; background: var(--side); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: none; padding: 6px 14px; border-radius: 7px; color: var(--ink-2); display: flex; align-items: center; gap: 7px; }
+.seg button.on { background: var(--card); color: var(--ink); box-shadow: var(--shadow); }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 9px; border-radius: 99px; background: var(--side); color: var(--ink-2); border: 1px solid var(--line); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.pill.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+
+/* ---------- batches & clips */
+.batch { margin-bottom: 36px; }
+.batch-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.batch-head h2 { font: 500 20px/1.3 var(--serif); margin: 0; }
+.batch-notes { color: var(--ink-2); margin: 0 0 14px; max-width: 70ch; }
+.meter { height: 4px; width: 90px; background: var(--line); border-radius: 9px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--ok); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 16px; }
+.clip { overflow: hidden; display: flex; flex-direction: column; transition: transform .15s, box-shadow .15s; }
+.clip:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(31,30,27,.09); }
+.thumb { position: relative; aspect-ratio: 9/16; background: #2B2A27 center/cover no-repeat; border: 0; padding: 0; width: 100%; display: block; }
+.thumb .play { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transition: opacity .15s; background: rgba(0,0,0,.25); color: #fff; }
+.thumb:hover .play { opacity: 1; }
+.thumb .play span { width: 46px; height: 46px; border-radius: 50%; background: rgba(255,255,255,.92); color: #1F1E1B; display: grid; place-items: center; }
+.thumb .tag { position: absolute; top: 8px; left: 8px; }
+.thumb .done { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; }
+.thumb .done svg.i { width: 14px; height: 14px; stroke-width: 2.5; }
+.thumb .noimg { position: absolute; inset: 0; display: grid; place-items: center; color: #8C897F; }
+.clip-body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.clip-title { font-weight: 600; font-size: 13.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.clip-meta { color: var(--ink-3); font-size: 12px; }
+.clip-actions { display: flex; gap: 6px; }
+.clip-actions .btn { flex: 1; justify-content: center; }
+.clip-actions .btn.icon { flex: none; width: 34px; padding: 0; }
+.bar { height: 4px; background: var(--line); border-radius: 9px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+/* ---------- empty / sign-in */
+.empty { text-align: center; padding: 70px 20px; color: var(--ink-2); }
+.empty .art { width: 68px; height: 68px; margin: 0 auto 16px; border-radius: 18px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.empty .art svg.i { width: 30px; height: 30px; }
+.empty h3 { font: 500 21px/1.3 var(--serif); color: var(--ink); margin: 0 0 6px; }
+.empty p { margin: 0 auto 18px; max-width: 46ch; }
+.signin { height: 100vh; overflow-y: auto; display: grid; place-items: center; padding: 30px; }
+.signin-box { width: 100%; max-width: 440px; }
+.signin-box .logo { width: 52px; height: 52px; display: block; margin: 0 auto 18px; }
+.signin-box h1 { font: 500 32px/1.15 var(--serif); text-align: center; margin: 0 0 8px; letter-spacing: -.015em; }
+.signin-box .lead { text-align: center; color: var(--ink-2); margin: 0 0 26px; }
+.signin-box .card { padding: 22px; }
+.steps { margin: 0 0 18px; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; display: flex; gap: 10px; padding: 5px 0; color: var(--ink-2); font-size: 13.5px; }
+.steps li::before { content: counter(s); flex: none; width: 21px; height: 21px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; display: grid; place-items: center; margin-top: 1px; }
+.err { color: var(--danger); font-size: 13px; min-height: 18px; margin: -6px 0 10px; }
+.or { text-align: center; margin-top: 16px; }
+.linkbtn { border: 0; background: none; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; padding: 0; }
+.linkbtn:hover { color: var(--ink); }
+
+/* ---------- make clips */
+.make { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+.drop { border: 1.5px dashed var(--line-2); border-radius: var(--r); padding: 44px 24px; text-align: center; background: var(--card); }
+.drop.has { border-style: solid; text-align: left; padding: 18px 20px; display: flex; align-items: center; gap: 14px; }
+.drop .art { width: 54px; height: 54px; margin: 0 auto 12px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.drop.has .art { margin: 0; }
+.drop h3 { font: 500 19px/1.3 var(--serif); margin: 0 0 4px; }
+.drop p { color: var(--ink-2); margin: 0 0 16px; }
+.drop.has p { margin: 0; word-break: break-all; font-size: 13px; }
+.opts { padding: 18px 18px 6px; }
+.opts h3 { font: 500 17px/1.3 var(--serif); margin: 0 0 14px; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 9px; overflow: hidden; background: var(--card); }
+.stepper button { width: 34px; height: 34px; border: 0; background: none; font-size: 17px; color: var(--ink-2); }
+.stepper button:hover { background: var(--side); }
+.stepper span { min-width: 36px; text-align: center; font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.progress { margin-top: 20px; padding: 18px 20px; }
+.progress .row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.log { font: 12.5px/1.6 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--ink-2); max-height: 160px; overflow-y: auto; margin-top: 12px; white-space: pre-wrap; }
+.spin { width: 16px; height: 16px; border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- settings */
+.settings { max-width: 640px; }
+.section { padding: 20px 22px 6px; margin-bottom: 18px; }
+.section h2 { font: 500 18px/1.3 var(--serif); margin: 0 0 14px; }
+.acct { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.acct img { width: 42px; height: 42px; border-radius: 50%; }
+
+/* ---------- player */
+.modal { position: fixed; inset: 0; background: rgba(20,19,17,.55); display: grid; place-items: center; z-index: 10; padding: 24px; animation: fade .15s; }
+@keyframes fade { from { opacity: 0; } }
+.player { display: grid; grid-template-columns: auto 340px; max-height: calc(100vh - 48px); overflow: hidden; }
+.player video { height: min(78vh, 760px); aspect-ratio: 9/16; background: #000; display: block; }
+.player .info { padding: 22px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.player h2 { font: 500 21px/1.3 var(--serif); margin: 0; }
+.capbox { background: var(--side); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; white-space: pre-wrap; font-size: 13.5px; }
+.capbox .tags { color: var(--accent); margin-top: 6px; }
+.player .x { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.9); color: #1F1E1B; display: grid; place-items: center; }
+.check { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); text-align: left; width: 100%; }
+.check .box { width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--line-2); display: grid; place-items: center; flex: none; }
+.check.on .box { background: var(--ok); border-color: var(--ok); color: #fff; }
+.check .box svg.i { width: 13px; height: 13px; stroke-width: 3; }
+.toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 10px; font-size: 13px; z-index: 20; animation: fade .15s; }
+.loading { display: flex; align-items: center; gap: 10px; color: var(--ink-3); padding: 30px 0; }
+
+@media (max-width: 760px) {
+  .shell { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .page { padding: 24px 16px 60px; }
+  .make { grid-template-columns: 1fr; }
+  .player { grid-template-columns: 1fr; overflow-y: auto; }
+  .player video { height: 60vh; margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// ---------------------------------------------------------------- icons (simple line icons)
+const ICONS = {
+  spark: '<path d="M12 3c.8 4.4 2.6 6.2 7 7-4.4.8-6.2 2.6-7 7-.8-4.4-2.6-6.2-7-7 4.4-.8 6.2-2.6 7-7z"/>',
+  scissors: '<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M20 4 8.1 15.9"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  play: '<path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/>',
+  down: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
+  copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  refresh: '<path d="M20 11a8 8 0 0 0-14.6-4.4L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.4L20 16M20 20v-4h-4"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  film: '<rect x="6" y="3" width="12" height="18" rx="2.5"/><path d="M10.5 9.5v5l4-2.5z"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M14 9l2 2"/>',
+  out: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  logout: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/>',
+  blur: '<rect x="6" y="3" width="12" height="18" rx="2"/><rect x="6" y="9" width="12" height="6" fill="currentColor" stroke="none" opacity=".35"/>',
+  crop: '<rect x="6" y="3" width="12" height="18" rx="2" fill="currentColor" fill-opacity=".35"/>',
+  zoom: '<rect x="6" y="3" width="12" height="18" rx="2"/><rect x="6" y="7" width="12" height="10" fill="currentColor" stroke="none" opacity=".35"/>',
+};
+const icon = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24">${ICONS[n]}</svg>`;
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---------------------------------------------------------------- api
+const KEY = new URLSearchParams(location.hash.slice(1)).get('k') || '';
+async function api(name, body = {}) {
+  const r = await fetch('/api/' + name, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Clauditing-Key': KEY }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Something went wrong');
+  return j;
+}
+const withKey = u => u ? u + (u.includes('?') ? '&' : '?') + 'k=' + encodeURIComponent(KEY) : '';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function waitJob(id, onTick) {
+  for (;;) {
+    const j = await api('job', { id });
+    onTick && onTick(j);
+    if (j.state !== 'running') { if (j.state === 'error') throw new Error(j.error); return j.result; }
+    await sleep(400);
+  }
+}
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+  toast('Caption copied');
+}
+
+// ---------------------------------------------------------------- state
+const S = { state: null, view: 'claude', batches: null, local: null, err: '', video: '', count: 7, length: 15, layout: 'blur', job: null, signinErr: '' };
+const root = document.getElementById('root');
+
+async function boot() {
+  try { S.state = await api('state'); }
+  catch (e) { root.innerHTML = `<div class="empty"><h3>Couldn't start</h3><p>${esc(e.message)}</p></div>`; return; }
+  const st = S.state.settings;
+  S.layout = st.layout; S.length = st.clip_length;
+  if (st.signed_in || localStorage.getItem('skipSignin')) { render(); loadBatches(); } else renderSignin();
+}
+
+// ---------------------------------------------------------------- sign in
+function renderSignin() {
+  const repo = S.state.settings.repo;
+  root.innerHTML = `
+  <div class="signin"><div class="signin-box">
+    <img class="logo" src="logo.svg" alt="">
+    <h1>Welcome to Clauditing</h1>
+    <p class="lead">Sign in with GitHub to see the clips Claude edited for you.</p>
+    <div class="card">
+      <ol class="steps">
+        <li><span>Open <button class="linkbtn" data-url="https://github.com/settings/personal-access-tokens/new">GitHub token settings</button></span></li>
+        <li><span>Give it a name, pick your <b>clauditing</b> repo, and allow <b>Contents: Read</b></span></li>
+        <li><span>Generate it, then paste it below</span></li>
+      </ol>
+      <div class="field"><label for="tok">GitHub token</label>
+        <input class="input" id="tok" type="password" placeholder="github_pat_…" autocomplete="off"></div>
+      <div class="field"><label for="repo">Repository</label>
+        <input class="input" id="repo" value="${esc(repo)}"></div>
+      <div class="err" id="serr">${esc(S.signinErr)}</div>
+      <button class="btn primary" id="go" style="width:100%;justify-content:center">${icon('key')} Sign in</button>
+    </div>
+    <div class="or"><button class="linkbtn" id="skip">Skip for now and just edit videos on this PC</button></div>
+  </div></div>`;
+  bindUrls();
+  const go = async () => {
+    const b = document.getElementById('go'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Signing in…';
+    try {
+      S.state = await api('signin', { token: document.getElementById('tok').value, repo: document.getElementById('repo').value });
+      localStorage.removeItem('skipSignin'); S.signinErr = ''; S.view = 'claude'; render(); loadBatches();
+    } catch (e) { S.signinErr = e.message; document.getElementById('serr').textContent = e.message; b.disabled = false; b.innerHTML = icon('key') + ' Sign in'; }
+  };
+  document.getElementById('go').onclick = go;
+  document.getElementById('tok').onkeydown = e => e.key === 'Enter' && go();
+  document.getElementById('skip').onclick = () => { localStorage.setItem('skipSignin', '1'); S.view = 'make'; render(); };
+}
+function bindUrls(el = root) {
+  el.querySelectorAll('[data-url]').forEach(b => b.onclick = () => S.state.desktop ? api('open_url', { url: b.dataset.url }) : window.open(b.dataset.url));
+}
+
+// ---------------------------------------------------------------- shell
+function render() {
+  const st = S.state.settings, u = st.user;
+  const total = (S.batches || []).reduce((n, b) => n + b.clips.length, 0);
+  root.innerHTML = `
+  <div class="shell">
+    <aside class="side">
+      <div class="brand"><img src="logo.svg" alt=""><b>Clauditing</b></div>
+      <nav class="nav">
+        <button data-v="claude" class="${S.view === 'claude' ? 'on' : ''}">${icon('spark')} Made by Claude ${total ? `<span class="count">${total}</span>` : ''}</button>
+        <button data-v="make" class="${S.view === 'make' ? 'on' : ''}">${icon('scissors')} Make clips</button>
+        <button data-v="settings" class="${S.view === 'settings' ? 'on' : ''}">${icon('gear')} Settings</button>
+      </nav>
+      <div class="grow"></div>
+      <button class="me" data-v="settings">
+        ${u && u.avatar ? `<img src="${esc(u.avatar)}" alt="" onerror="this.outerHTML='<span class=ph>${esc((u.name||'?')[0].toUpperCase())}</span>'">` : `<span class="ph">${u ? esc((u.name||'?')[0].toUpperCase()) : '?'}</span>`}
+        <span>${u ? esc(u.name) : 'Not signed in'}<small>${u ? '@' + esc(u.login) : 'Sign in with GitHub'}</small></span>
+      </button>
+    </aside>
+    <main class="main"><div class="page" id="page"></div></main>
+  </div>`;
+  root.querySelectorAll('[data-v]').forEach(b => b.onclick = () => { S.view = b.dataset.v; render(); if (S.view === 'claude' && !S.batches) loadBatches(); if (S.view === 'make') loadLocal(); });
+  ({ claude: pageClaude, make: pageMake, settings: pageSettings })[S.view]();
+}
+const page = () => document.getElementById('page');
+
+// ---------------------------------------------------------------- Made by Claude
+async function loadBatches() {
+  if (!S.state.settings.signed_in) { S.batches = []; if (S.view === 'claude') render(); return; }
+  S.batches = null; S.err = ''; if (S.view === 'claude') pageClaude();
+  try { S.batches = await api('batches'); } catch (e) { S.err = e.message; S.batches = []; }
+  if (S.view === 'claude') render();
+}
+function pageClaude() {
+  const p = page(); if (!p) return;
+  const head = `<div class="head"><div><h1>Made by Claude</h1><p>Clips Claude edited from your gameplay, ready to post.</p></div><div class="grow"></div>
+    ${S.state.settings.signed_in ? `<button class="btn" id="refresh">${icon('refresh')} Refresh</button>` : ''}</div>`;
+  if (!S.state.settings.signed_in) {
+    p.innerHTML = head + emptyState('key', 'Sign in to see Claude\'s clips', 'Clauditing reads the clips Claude publishes to your GitHub repo.', `<button class="btn primary" id="signin">${icon('key')} Sign in with GitHub</button>`);
+    document.getElementById('signin').onclick = () => { localStorage.removeItem('skipSignin'); renderSignin(); };
+    return;
+  }
+  if (S.batches === null) { p.innerHTML = head + `<div class="loading"><span class="spin"></span> Checking GitHub for new clips…</div>`; return; }
+  let body;
+  if (S.err) body = emptyState('refresh', 'Couldn\'t load clips', esc(S.err), `<button class="btn" id="retry">Try again</button>`);
+  else if (!S.batches.length) body = emptyState('spark', 'No clips from Claude yet', 'Send Claude your Roblox gameplay in chat. When the clips are ready they\'ll show up here, one batch per week.');
+  else body = S.batches.map(batchHTML).join('');
+  p.innerHTML = head + body;
+  bindClips(p, S.batches || []);
+  const r = document.getElementById('refresh'); if (r) r.onclick = loadBatches;
+  const rt = document.getElementById('retry'); if (rt) rt.onclick = loadBatches;
+}
+function emptyState(ic, title, text, action = '') {
+  return `<div class="empty"><div class="art">${icon(ic)}</div><h3>${title}</h3><p>${text}</p>${action}</div>`;
+}
+function fmtDay(d) {
+  if (!d) return '';
+  const x = new Date(d + (d.length === 10 ? 'T12:00:00' : ''));
+  return isNaN(x) ? d : x.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function batchHTML(b) {
+  const posted = b.clips.filter(c => c.posted).length;
+  return `<section class="batch">
+    <div class="batch-head"><h2>${esc(b.title)}</h2>
+      <span class="pill">${b.clips.length} clip${b.clips.length === 1 ? '' : 's'}</span>
+      ${b.clips.length ? `<span class="pill ${posted === b.clips.length ? 'ok' : ''}">${posted}/${b.clips.length} posted</span>` : ''}
+      ${b.folder ? `<button class="btn ghost sm" data-open="${esc(b.folder)}">${icon('folder')} Open folder</button>` : ''}
+    </div>
+    ${b.notes ? `<p class="batch-notes">${esc(b.notes)}</p>` : '<div style="height:10px"></div>'}
+    <div class="grid">${b.clips.map(c => clipHTML(b, c)).join('')}</div>
+  </section>`;
+}
+function clipHTML(b, c) {
+  const thumb = c.thumb ? `style="background-image:url('${withKey(c.thumb)}')"` : '';
+  return `<article class="card clip" data-key="${esc(c.key)}">
+    <button class="thumb" ${thumb} data-act="open" aria-label="Play ${esc(c.title)}">
+      ${c.thumb ? '' : `<span class="noimg">${icon('film')}</span>`}
+      ${c.post_on ? `<span class="pill accent tag">${esc(fmtDay(c.post_on))}</span>` : ''}
+      ${c.posted ? `<span class="done">${icon('check')}</span>` : ''}
+      <span class="play"><span>${icon('play')}</span></span>
+    </button>
+    <div class="clip-body">
+      <div class="clip-title">${esc(c.title)}</div>
+      ${c.size ? `<div class="clip-meta">${(c.size / 1048576).toFixed(1)} MB${c.downloaded ? ' · on this PC' : ''}</div>` : ''}
+      <div class="bar" hidden><i></i></div>
+      <div class="clip-actions">
+        ${c.downloaded ? `<button class="btn sm" data-act="show">${icon('folder')} Show</button>`
+                       : `<button class="btn sm" data-act="dl">${icon('down')} Download</button>`}
+        ${c.caption ? `<button class="btn sm icon" data-act="copy" title="Copy caption">${icon('copy')}</button>` : ''}
+      </div>
+    </div>
+  </article>`;
+}
+function bindClips(el, batches) {
+  const find = key => { for (const b of batches) for (const c of b.clips) if (c.key === key) return [b, c]; };
+  el.querySelectorAll('[data-open]').forEach(x => x.onclick = () => api('open', { path: x.dataset.open }).catch(e => toast(e.message)));
+  el.querySelectorAll('.clip').forEach(card => {
+    const [b, c] = find(card.dataset.key);
+    card.querySelectorAll('[data-act]').forEach(btn => btn.onclick = async () => {
+      const act = btn.dataset.act;
+      if (act === 'copy') return copy(captionText(c));
+      if (act === 'show') return api('open', { path: c.local }).catch(e => toast(e.message));
+      if (act === 'dl' || (act === 'open' && !c.downloaded)) { await download(card, b, c); if (act === 'open' && c.downloaded) openPlayer(b, c); return; }
+      if (act === 'open') openPlayer(b, c);
+    });
+  });
+}
+const captionText = c => [c.caption, c.hashtags].filter(Boolean).join('\n\n');
+async function download(card, b, c) {
+  const bar = card.querySelector('.bar'), fill = bar.querySelector('i'), btn = card.querySelector('[data-act=dl]');
+  bar.hidden = false; if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Downloading'; }
+  try {
+    const { job } = await api('download', { tag: b.tag, file: c.file, asset_id: c.asset_id });
+    const res = await waitJob(job, j => fill.style.width = Math.round(j.progress * 100) + '%');
+    Object.assign(c, { downloaded: true, local: res.local, url: res.url });
+    card.outerHTML = clipHTML(b, c);
+    bindClips(page(), S.batches);
+  } catch (e) { toast(e.message); bar.hidden = true; if (btn) { btn.disabled = false; btn.innerHTML = icon('down') + ' Download'; } }
+}
+
+// ---------------------------------------------------------------- player
+function openPlayer(b, c) {
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="card player" style="position:relative">
+    <video src="${withKey(c.url)}" controls autoplay playsinline></video>
+    <div class="info">
+      <div><span class="pill">${esc(b.title)}</span></div>
+      <h2>${esc(c.title)}</h2>
+      ${c.post_on ? `<div style="color:var(--ink-2)">Post on <b>${esc(fmtDay(c.post_on))}</b></div>` : ''}
+      ${c.caption || c.hashtags ? `<div><div class="capbox">${esc(c.caption)}${c.hashtags ? `<div class="tags">${esc(c.hashtags)}</div>` : ''}</div></div>
+        <button class="btn" id="pcopy">${icon('copy')} Copy caption</button>` : ''}
+      <button class="check ${c.posted ? 'on' : ''}" id="pposted"><span class="box">${icon('check')}</span><span><b>Posted</b><br><small style="color:var(--ink-3)">Tick it once it's on TikTok and YouTube</small></span></button>
+      <button class="btn" id="pshow">${icon('folder')} Show in folder</button>
+    </div>
+    <button class="x" id="px" aria-label="Close">${icon('x')}</button>
+  </div>`;
+  document.body.appendChild(m);
+  const close = () => { m.remove(); document.removeEventListener('keydown', onKey); render(); };
+  const onKey = e => e.key === 'Escape' && close();
+  document.addEventListener('keydown', onKey);
+  m.onclick = e => e.target === m && close();
+  m.querySelector('#px').onclick = close;
+  const pc = m.querySelector('#pcopy'); if (pc) pc.onclick = () => copy(captionText(c));
+  m.querySelector('#pshow').onclick = () => api('open', { path: c.local }).catch(e => toast(e.message));
+  m.querySelector('#pposted').onclick = async e => {
+    c.posted = !c.posted; e.currentTarget.classList.toggle('on', c.posted);
+    await api('posted', { key: c.key, posted: c.posted });
+  };
+}
+
+// ---------------------------------------------------------------- Make clips
+async function loadLocal() {
+  try { S.local = await api('local'); } catch { S.local = []; }
+  if (S.view === 'make' && !S.job) renderLocal();
+}
+function pageMake() {
+  const p = page();
+  const name = S.video ? S.video.split(/[\\/]/).pop() : '';
+  p.innerHTML = `
+  <div class="head"><div><h1>Make clips</h1><p>Pick a gameplay recording and Clauditing finds the best moments and edits them for you.</p></div></div>
+  <div class="make">
+    <div>
+      ${S.video ? `<div class="drop has"><div class="art">${icon('film')}</div><div style="flex:1;min-width:0"><h3>${esc(name)}</h3><p>${esc(S.video)}</p></div><button class="btn" id="pick">Change</button></div>`
+        : `<div class="drop"><div class="art">${icon('film')}</div><h3>Choose a gameplay video</h3><p>MP4, MOV or MKV. Longer recordings give more good moments to pick from.</p>
+           ${S.state.desktop ? `<button class="btn primary" id="pick">Choose video</button>` : `<input class="input" id="path" placeholder="Paste the full path to a video" style="max-width:420px">`}</div>`}
+      <div id="prog"></div>
+    </div>
+    <div class="card opts">
+      <h3>Options</h3>
+      <div class="field"><label>Number of clips</label>
+        <div style="display:flex;align-items:center;gap:10px"><div class="stepper"><button id="cm">−</button><span id="cv">${S.count}</span><button id="cp">+</button></div><span class="hint">one per day</span></div></div>
+      <div class="field"><label>Clip length <span id="lv" style="color:var(--ink-3);font-weight:400">${S.length}s</span></label>
+        <input type="range" id="len" min="8" max="45" step="1" value="${S.length}"></div>
+      <div class="field"><label>Layout</label>
+        <div class="seg" id="lay">${['blur', 'crop', 'zoom'].map(l => `<button data-l="${l}" class="${S.layout === l ? 'on' : ''}">${icon(l)} ${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div>
+        <span class="hint">${({ blur: 'Whole screen visible, blurred background', crop: 'Fills the phone screen, cuts the sides', zoom: 'A bit of both' })[S.layout]}</span></div>
+      <div class="field"><button class="btn primary" id="go" style="justify-content:center" ${S.job ? 'disabled' : ''}>${icon('scissors')} Make ${S.count} clips</button></div>
+    </div>
+  </div>
+  <div id="localList" style="margin-top:38px"></div>`;
+  const pick = document.getElementById('pick');
+  if (pick) pick.onclick = async () => { const r = await api('pick_video'); if (r.path) { S.video = r.path; pageMake(); } };
+  const path = document.getElementById('path'); if (path) path.onchange = () => { S.video = path.value.trim().replace(/^"|"$/g, ''); pageMake(); };
+  document.getElementById('cm').onclick = () => { S.count = Math.max(1, S.count - 1); pageMake(); };
+  document.getElementById('cp').onclick = () => { S.count = Math.min(14, S.count + 1); pageMake(); };
+  const len = document.getElementById('len'); len.oninput = () => { S.length = +len.value; document.getElementById('lv').textContent = S.length + 's'; };
+  document.querySelectorAll('#lay button').forEach(b => b.onclick = () => { S.layout = b.dataset.l; pageMake(); });
+  document.getElementById('go').onclick = startMake;
+  if (S.job) renderProgress(S.job); else renderLocal();
+  if (S.local === null) loadLocal();
+}
+function renderProgress(j) {
+  const el = document.getElementById('prog'); if (!el) return;
+  const running = j.state === 'running';
+  el.innerHTML = `<div class="card progress">
+    <div class="row">${running ? '<span class="spin"></span>' : j.state === 'done' ? `<span class="pill ok">${icon('check')} Done</span>` : '<span class="pill" style="color:var(--danger)">Failed</span>'}
+      <b>${running ? 'Editing your clips…' : j.state === 'done' ? 'Your clips are ready' : esc(j.error || 'Something went wrong')}</b></div>
+    <div class="bar"><i style="width:${Math.round((j.progress || 0) * 100)}%"></i></div>
+    <div class="log">${esc((j.log || []).slice(-8).join('\n'))}</div>
+  </div>`;
+}
+async function startMake() {
+  if (!S.video) return toast('Choose a video first');
+  try {
+    const { job } = await api('make', { video: S.video, count: S.count, length: S.length, layout: S.layout });
+    S.job = { state: 'running', progress: 0, log: [] }; pageMake();
+    try { await waitJob(job, j => { S.job = j; renderProgress(j); }); toast('Clips saved'); }
+    catch (e) { /* shown in the progress card */ }
+    const last = S.job; S.job = null; S.local = null; await loadLocal(); pageMake(); renderProgress(last);
+  } catch (e) { toast(e.message); }
+}
+function renderLocal() {
+  const el = document.getElementById('localList'); if (!el) return;
+  if (!S.local || !S.local.length) { el.innerHTML = ''; return; }
+  el.innerHTML = `<div class="head" style="margin-bottom:16px"><div><h1 style="font-size:22px">Made on this PC</h1></div></div>` + S.local.map(batchHTML).join('');
+  bindClips(el, S.local);
+}
+
+// ---------------------------------------------------------------- Settings
+function pageSettings() {
+  const st = S.state.settings, u = st.user;
+  page().innerHTML = `
+  <div class="head"><div><h1>Settings</h1></div></div>
+  <div class="settings">
+    <div class="card section"><h2>GitHub account</h2>
+      ${u ? `<div class="acct">${u.avatar ? `<img src="${esc(u.avatar)}" alt="">` : ""}<div style="flex:1"><b>${esc(u.name)}</b><br><span style="color:var(--ink-3)">@${esc(u.login)} · ${esc(st.repo)}</span></div>
+          <button class="btn" id="out">${icon('logout')} Sign out</button></div>`
+        : `<p style="color:var(--ink-2);margin:0 0 16px">Sign in to see the clips Claude publishes to your repo.</p><div class="field"><button class="btn primary" id="in" style="align-self:flex-start">${icon('key')} Sign in with GitHub</button></div>`}
+    </div>
+    <div class="card section"><h2>Clip style</h2>
+      <div class="field"><label for="handle">Your @handle</label><input class="input" id="handle" value="${esc(st.handle)}" placeholder="@yourgame"><span class="hint">Shown small at the bottom of every clip you make here.</span></div>
+      <div class="field"><label for="caps">Captions</label><textarea class="input" id="caps">${esc((st.captions || []).join('\n'))}</textarea><span class="hint">One per line. Clips you make here use these in order.</span></div>
+    </div>
+    <div class="card section"><h2>Library</h2>
+      <div class="field"><label>Clips are saved to</label>
+        <div style="display:flex;gap:8px"><input class="input" id="lib" value="${esc(S.state.library)}"><button class="btn" id="openlib">${icon('folder')} Open</button></div></div>
+    </div>
+    <button class="btn primary" id="save">Save settings</button>
+    <p style="color:var(--ink-3);font-size:12px;margin-top:26px">Clauditing ${esc(S.state.version)}</p>
+  </div>`;
+  const out = document.getElementById('out');
+  if (out) out.onclick = async () => { S.state = await api('signout'); S.batches = []; localStorage.setItem('skipSignin', '1'); render(); };
+  const inn = document.getElementById('in'); if (inn) inn.onclick = () => { localStorage.removeItem('skipSignin'); renderSignin(); };
+  document.getElementById('openlib').onclick = () => api('open', {}).catch(e => toast(e.message));
+  document.getElementById('save').onclick = async () => {
+    S.state = await api('settings', { handle: document.getElementById('handle').value.trim(), captions: document.getElementById('caps').value.split('\n'), library: document.getElementById('lib').value.trim() });
+    toast('Settings saved'); render();
+  };
+}
+
+boot();
+</script>
+</body>
+</html>

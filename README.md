@@ -4,13 +4,33 @@ Turns raw Roblox gameplay into ready-to-post vertical clips (1080×1920) for You
 
 It finds the best moments automatically (loud audio + lots of action), cuts them, puts the gameplay on a blurred vertical background, adds a big caption and your @handle, evens out the volume, and adds quick fades.
 
-## Setup (once)
+## The app (Windows)
+
+Download **Clauditing.exe** from the [app release](../../releases/tag/app) and run it. Nothing else to install (ffmpeg is built in).
+
+- **Made by Claude**: every batch of clips Claude edits for you shows up here, with the day to post it, a ready caption with hashtags, and a "Posted" tick box.
+- **Make clips**: pick a gameplay video on your PC and it makes clips itself.
+- **Settings**: your @handle, captions and where clips are saved.
+
+Sign in with a GitHub token (the app shows the 3 steps). It only needs **Contents: Read** on this repo.
+
+GitHub rebuilds the .exe automatically on every change (see `.github/workflows/build-exe.yml`).
+
+### How Claude's clips get into the app
+
+Claude edits the clips, then runs `python tools/publish_batch.py batch.json`, which uploads them as a GitHub Release tagged `clips-YYYY-MM-DD` with thumbnails and a `manifest.json` (titles, captions, hashtags, post dates). The app lists every `clips-` release.
+
+> This repo is public, so published clips are public too. Make the repo private in GitHub settings if you'd rather they weren't.
+
+## Command line
+
+### Setup (once)
 
 1. Install **Python 3.8+** and **ffmpeg** (Windows: `winget install ffmpeg`, Mac: `brew install ffmpeg`).
 2. `pip install -r requirements.txt`
 3. Copy `config.example.json` to `config.json` and put your handle in it.
 
-## Use it
+### Use it
 
 Make a week of clips from one recording (one per day):
 
@@ -30,7 +50,7 @@ Other commands:
 
 Options for `cut` / `auto`: `--layout blur|crop|zoom` (blur = whole screen visible, crop = fills the screen, zoom = in between), `--speed 1.25`.
 
-## Settings (`config.json`)
+### Settings (`config.json`)
 
 | Setting | Meaning |
 |---|---|
@@ -41,6 +61,6 @@ Options for `cut` / `auto`: `--layout blur|crop|zoom` (blur = whole screen visib
 | `font` | Path to a `.ttf`; or drop one into a `fonts/` folder |
 | `default_captions` | Captions `auto` rotates through |
 
-## Posting
+### Posting
 
 Upload the finished clips with a scheduler that's approved for TikTok (Buffer, Later, Metricool, Blotato) and queue one per day to TikTok + YouTube Shorts.
