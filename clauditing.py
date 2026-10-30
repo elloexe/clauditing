@@ -32,6 +32,7 @@ DEFAULT_CONFIG = {
     "caption_color": "white",
     "caption_outline": "black",
     "caption_size": 92,
+    "caption_y": 0.13,            # caption height on screen: 0 = top, 1 = bottom
     "font": "",                   # path to a .ttf/.otf; empty = auto-detect a bold font
     "speed": 1.0,
     "loudnorm": True,
@@ -283,7 +284,7 @@ def build_filter(info, cfg, caption_file, handle_file, font, layout, speed, clip
         steps.append(
             f"drawtext=textfile='{ff_path(caption_file)}'{fontarg}:fontsize={cfg['caption_size']}:"
             f"fontcolor={cfg['caption_color']}:borderw=7:bordercolor={cfg['caption_outline']}:"
-            f"line_spacing=14:text_align=center:x=(w-text_w)/2:y=h*0.13"
+            f"line_spacing=14:text_align=center:x=(w-text_w)/2:y=h*{float(cfg.get('caption_y', 0.13)):.3f}"
         )
     if handle_file:
         steps.append(
@@ -323,7 +324,9 @@ def text_filter_supports_align():
     return "text_align" in out
 
 
-def cut_clip(src, start, end, caption, out_path, cfg, layout=None, speed=None):
+def cut_clip(src, start, end, caption, out_path, cfg, layout=None, speed=None, caption_y=None):
+    if caption_y is not None:
+        cfg = dict(cfg, caption_y=float(caption_y))
     info = probe(src)
     start = max(0.0, float(start))
     end = min(info["duration"], float(end))
@@ -392,7 +395,7 @@ def cmd_scan(args, cfg):
 def cmd_cut(args, cfg):
     out = args.output or os.path.join(
         args.out, f"{os.path.splitext(os.path.basename(args.video))[0]}_{args.start}-{args.end}.mp4")
-    cut_clip(args.video, args.start, args.end, args.caption, out, cfg, args.layout, args.speed)
+    cut_clip(args.video, args.start, args.end, args.caption, out, cfg, args.layout, args.speed, args.caption_y)
 
 
 def cmd_auto(args, cfg):
@@ -431,7 +434,7 @@ def cmd_batch(args, cfg):
         name = c.get("name") or f"clip{i:02d}"
         out = os.path.join(args.out, f"{name}.mp4")
         cut_clip(src, c["start"], c["end"], c.get("caption", ""), out, cfg,
-                 c.get("layout"), c.get("speed"))
+                 c.get("layout"), c.get("speed"), c.get("caption_y"))
 
 
 def main():
@@ -452,6 +455,7 @@ def main():
     c.add_argument("--caption", default="")
     c.add_argument("--layout", choices=["blur", "crop", "zoom"])
     c.add_argument("--speed", type=float)
+    c.add_argument("--caption-y", type=float, help="caption height, 0 = top, 1 = bottom (default 0.13)")
     c.add_argument("-o", "--output")
 
     a = sub.add_parser("auto", help="scan + cut the top N moments")
